@@ -134,6 +134,27 @@ Publish a message to a topic:
                      retain:NO
 	                qos:MQTTQosLevelAtLeastOnce]; // this is part of the asynchronous API
 ```
+Add in - (void)checkTxFlows
+```objective-c
+NSTimeInterval now = NSDate.date.timeIntervalSince1970;
+	/* self.ping_time != 0 means we are waiting for a pingresp.
+	* This hasn't happened in the keepalive time so we should disconnect.
+	*/
+     if (self.ping_time>0&&now-self.ping_time>=self.keepAliveInterval) {
+        self.ping_time = 0;
+        NSError *error = [NSError errorWithDomain:LDSMQTTSessionErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey:@"pingReq timeout"}];
+        [self error:LDSMQTTSessionEventConnectionError error:error];
+        if ([self.delegate respondsToSelector:@selector(connectionError:error:)]) {
+            [self.delegate connectionError:self error:error];
+        }
+        MQTTConnectHandler connectHandler = self.connectHandler;
+        if (connectHandler) {
+            self.connectHandler = nil;
+            [self onConnect:connectHandler error:error];
+        }
+        return;
+    }
+```
 
 ## Thanks
 
