@@ -50,6 +50,7 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
 
 @property (strong, nonatomic) MQTTSSLSecurityPolicy *securityPolicy;
 
+@property(nonatomic, assign) NSTimeInterval ping_time;//save the pingreq time
 @end
 
 #define DUPLOOP 1.0
@@ -90,6 +91,8 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
     self.queue = dispatch_get_main_queue();
     self.status = MQTTSessionStatusCreated;
     self.streamSSLLevel = (NSString *)kCFStreamSocketSecurityLevelNegotiatedSSL;
+    
+    self.ping_time = 0;
     return self;
 }
 
@@ -608,6 +611,9 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
 
 - (void)keepAlive {
     DDLogVerbose(@"[MQTTSession] keepAlive %@ @%.0f", self.clientId, [[NSDate date] timeIntervalSince1970]);
+    if (self.ping_time==0) {
+        self.ping_time = NSDate.date.timeIntervalSince1970;
+    }
     (void)[self encode:[MQTTMessage pingreqMessage]];
 }
 
@@ -617,6 +623,23 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
 }
 
 - (void)checkTxFlows {
+    
+    NSTimeInterval now = NSDate.date.timeIntervalSince1970;
+    if (self.ping_time>0&&now-self.ping_time>=self.keepAliveInterval) {
+        self.ping_time = 0;
+        NSError *error = [NSError errorWithDomain:LDSMQTTSessionErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey:@"pingReq timeout"}];
+        [self error:LDSMQTTSessionEventConnectionError error:error];
+        if ([self.delegate respondsToSelector:@selector(connectionError:error:)]) {
+            [self.delegate connectionError:self error:error];
+        }
+        MQTTConnectHandler connectHandler = self.connectHandler;
+        if (connectHandler) {
+            self.connectHandler = nil;
+            [self onConnect:connectHandler error:error];
+        }
+        return;
+    }
+    
     NSUInteger windowSize;
     MQTTMessage *message;
     if (self.status != MQTTSessionStatusConnected) {
@@ -941,7 +964,9 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
 
                         [self protocolError:error];
                     }
-
+                    case MQTTPingresp:
+                        [self handlePingResp:message];
+                        break;
                     default:
                         break;
                 }
@@ -952,7 +977,10 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
         }
     }
 }
-
+- (void)handlePingResp:(LDSMQTTMessage*)msg {
+    self.ping_time = 0; //reset pingtime
+    DDLogVerbose(@"[LDSMQTTSession] keepalive receive pingresp %lf",NSDate.date.timeIntervalSince1970);
+}
 - (void)handlePublish:(MQTTMessage*)msg {
     NSData *data = msg.data;
     if (data.length < 2) {
