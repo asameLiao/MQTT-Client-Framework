@@ -1,3 +1,6 @@
+# Not support cocoapods ,please download the code
+
+
 # MQTT-Client-Framework 
 
 | |Build Status|
