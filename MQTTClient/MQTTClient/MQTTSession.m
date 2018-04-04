@@ -627,8 +627,8 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
     NSTimeInterval now = NSDate.date.timeIntervalSince1970;
     if (self.ping_time>0&&now-self.ping_time>=self.keepAliveInterval) {
         self.ping_time = 0;
-        NSError *error = [NSError errorWithDomain:LDSMQTTSessionErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey:@"pingReq timeout"}];
-        [self error:LDSMQTTSessionEventConnectionError error:error];
+        NSError *error = [NSError errorWithDomain:MQTTSessionErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey:@"pingReq timeout"}];
+        [self error:MQTTSessionEventConnectionError error:error];
         if ([self.delegate respondsToSelector:@selector(connectionError:error:)]) {
             [self.delegate connectionError:self error:error];
         }
@@ -977,9 +977,9 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
         }
     }
 }
-- (void)handlePingResp:(LDSMQTTMessage*)msg {
+- (void)handlePingResp:(MQTTMessage*)msg {
     self.ping_time = 0; //reset pingtime
-    DDLogVerbose(@"[LDSMQTTSession] keepalive receive pingresp %lf",NSDate.date.timeIntervalSince1970);
+    DDLogVerbose(@"[MQTTSession] keepalive receive pingresp %lf",NSDate.date.timeIntervalSince1970);
 }
 - (void)handlePublish:(MQTTMessage*)msg {
     NSData *data = msg.data;
