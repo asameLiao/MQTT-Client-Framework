@@ -625,8 +625,8 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
 - (void)checkTxFlows {
     
     NSTimeInterval now = NSDate.date.timeIntervalSince1970;
-    if (self.ping_time>0&&now-self.ping_time>=self.keepAliveInterval) {
-        self.ping_time = 0;
+    if (self.ping_time>0&&now-self.ping_time>=self.keepAliveInterval*1.5) {
+        
         NSError *error = [NSError errorWithDomain:MQTTSessionErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey:@"pingReq timeout"}];
         [self error:MQTTSessionEventConnectionError error:error];
         if ([self.delegate respondsToSelector:@selector(connectionError:error:)]) {
@@ -637,6 +637,7 @@ NSString * const MQTTSessionErrorDomain = @"MQTT";
             self.connectHandler = nil;
             [self onConnect:connectHandler error:error];
         }
+        self.ping_time = 0;
         return;
     }
     
